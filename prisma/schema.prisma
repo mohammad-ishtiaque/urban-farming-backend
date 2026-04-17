@@ -1,0 +1,164 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  VENDOR
+  CUSTOMER
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum CertStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  DELIVERED
+  CANCELLED
+}
+
+enum OtpType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+model User {
+  id              String          @id @default(uuid())
+  name            String
+  email           String          @unique
+  password        String
+  role            Role            @default(CUSTOMER)
+  status          Status          @default(PENDING)
+  createdAt       DateTime        @default(now())
+
+  vendorProfile   VendorProfile?
+  customerProfile CustomerProfile?
+  orders          Order[]
+  posts           CommunityPost[]
+  plantTrackings  PlantTracking[]
+  otpTokens       OtpToken[]
+}
+
+model OtpToken {
+  id        String   @id @default(uuid())
+  userId    String
+  otp       String
+  type      OtpType
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model VendorProfile {
+  id                  String               @id @default(uuid())
+  userId              String               @unique
+  farmName            String
+  farmLocation        String
+  certificationStatus CertStatus           @default(PENDING)
+
+  user                User                 @relation(fields: [userId], references: [id])
+  produce             Produce[]
+  rentalSpaces        RentalSpace[]
+  certifications      SustainabilityCert[]
+}
+
+model Produce {
+  id                  String        @id @default(uuid())
+  vendorId            String
+  name                String
+  description         String
+  price               Decimal
+  category            String
+  certificationStatus CertStatus    @default(PENDING)
+  availableQuantity   Int
+
+  vendor              VendorProfile @relation(fields: [vendorId], references: [id])
+  orders              Order[]
+}
+
+model RentalSpace {
+  id           String        @id @default(uuid())
+  vendorId     String
+  location     String
+  size         String
+  price        Decimal
+  availability Boolean       @default(true)
+
+  vendor       VendorProfile @relation(fields: [vendorId], references: [id])
+}
+
+model Order {
+  id        String      @id @default(uuid())
+  userId    String
+  produceId String
+  vendorId  String
+  status    OrderStatus @default(PENDING)
+  orderDate DateTime    @default(now())
+
+  user      User        @relation(fields: [userId], references: [id])
+  produce   Produce     @relation(fields: [produceId], references: [id])
+}
+
+model CommunityPost {
+  id          String   @id @default(uuid())
+  userId      String
+  postContent String
+  postDate    DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model SustainabilityCert {
+  id                String        @id @default(uuid())
+  vendorId          String
+  certifyingAgency  String
+  certificationDate DateTime
+
+  vendor            VendorProfile @relation(fields: [vendorId], references: [id])
+}
+
+model CustomerProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  phone     String?
+  address   String?
+  bio       String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PlantTracking {
+  id           String    @id @default(uuid())
+  userId       String
+  plantName    String
+  species      String?
+  healthStatus String    @default("HEALTHY")
+  growthStage  String    @default("SEEDLING")
+  notes        String?
+  harvestDate  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User      @relation(fields: [userId], references: [id])
+}
